@@ -7,8 +7,10 @@ import requests
 from bs4 import BeautifulSoup
 import telegram
 import concurrent.futures
+from datetime import datetime
 
 CONFIG_FILE = "config.json"
+RESULTS_DIR = "results"
 
 def get_ip_addresses(hostname):
     """
@@ -85,9 +87,25 @@ def send_to_telegram(message, bot_token, chat_id):
     except Exception as e:
         print(f"Failed to send to Telegram: {e}")
 
+def save_result_to_file(hostname, content):
+    """
+    Saves the analysis content to a file in the results directory.
+    """
+    if not os.path.exists(RESULTS_DIR):
+        os.makedirs(RESULTS_DIR)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{hostname.replace('.', '_')}_{timestamp}.txt"
+    filepath = os.path.join(RESULTS_DIR, filename)
+
+    with open(filepath, "w") as f:
+        f.write(content)
+
+    return filepath
+
 def get_analysis_output(target_url):
     """
-    Performs the full analysis and returns the formatted output string.
+    Performs the full analysis, saves it to a file, and returns the formatted output string.
     """
     parsed_url = urlparse(target_url)
     hostname = parsed_url.netloc
@@ -132,7 +150,10 @@ def get_analysis_output(target_url):
         else:
             output.append("   - (no IP)")
 
-    return "\n".join(output)
+    final_output = "\n".join(output)
+    filepath = save_result_to_file(hostname, final_output)
+
+    return final_output, filepath
 
 def check_domain_cdn(domain):
     """
@@ -203,8 +224,9 @@ def main():
         if choice == "1":
             target_url = input("Enter the URL to check: ")
             print("Analyzing...")
-            output = get_analysis_output(target_url)
+            output, filepath = get_analysis_output(target_url)
             print(output)
+            print(f"\n[+] Result saved to: {filepath}")
         elif choice == "2":
             config = load_config()
             if not config:
@@ -212,8 +234,9 @@ def main():
                 continue
             target_url = input("Enter the URL to check: ")
             print("Analyzing and sending to Telegram...")
-            output = get_analysis_output(target_url)
+            output, filepath = get_analysis_output(target_url)
             send_to_telegram(output, config["bot_token"], config["chat_id"])
+            print(f"\n[+] Result saved to: {filepath}")
         elif choice == "3":
             bot_token = input("Enter your Telegram Bot Token: ")
             chat_id = input("Enter your Telegram Chat ID: ")
