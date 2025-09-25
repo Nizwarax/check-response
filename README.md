@@ -12,7 +12,7 @@ Skrip ini menyediakan analisis mendetail dari sebuah URL web, termasuk alamat IP
 1.  **Clone repositori ini:**
     ```bash
     git clone https://github.com/Nizwarax/check-response.git
-    cd <check-response>
+    cd check-response
     ```
 
 2.  **Instal library Python yang dibutuhkan:**
