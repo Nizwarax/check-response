@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 import telegram
+import concurrent.futures
 
 CONFIG_FILE = "config.json"
 
@@ -133,39 +134,57 @@ def get_analysis_output(target_url):
 
     return "\n".join(output)
 
+def check_domain_cdn(domain):
+    """
+    Helper function to check CDN for a single domain.
+    This function is designed to be run in a separate thread.
+    """
+    ips = get_ip_addresses(domain)
+    cdn = "Other/Unknown"
+    try:
+        # Use a common user-agent to avoid being blocked.
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+        response = requests.get(f"https://{domain}", timeout=5, headers=headers)
+        server_header = response.headers.get("Server", "").lower()
+        if "cloudflare" in server_header:
+            cdn = "Cloudflare ✅"
+    except requests.RequestException:
+        # This can happen if the domain doesn't support HTTPS, is down, or blocks requests.
+        # We can safely ignore it and classify it as "Other/Unknown".
+        pass
+    return domain, (ips, cdn)
+
+
 def get_cdn_map(html_content, base_url):
     """
-    Parses HTML to find linked domains and their IP addresses.
+    Parses HTML to find linked domains and their IP addresses using multithreading.
     """
     soup = BeautifulSoup(html_content, "lxml")
     links = set()
-    tags = soup.find_all(["a", "img", "script", "link"])
-
-    for tag in tags:
-        url = ""
-        if tag.name == "a" and "href" in tag.attrs:
-            url = tag["href"]
-        elif tag.name in ["img", "script"] and "src" in tag.attrs:
-            url = tag["src"]
-        elif tag.name == "link" and "href" in tag.attrs:
-            url = tag["href"]
-
-        if url and not url.startswith(("mailto:", "tel:")):
-            parsed_link = urlparse(url)
-            if parsed_link.hostname and parsed_link.hostname != urlparse(base_url).hostname:
-                links.add(parsed_link.hostname)
+    # A more efficient way to find all relevant links
+    for tag in soup.find_all(href=True) + soup.find_all(src=True):
+        url = tag.get('href') or tag.get('src')
+        if url and not url.startswith(("mailto:", "tel:", "#", "javascript:")):
+            try:
+                parsed_link = urlparse(url)
+                # Ensure it's a valid, external hostname
+                if parsed_link.hostname and '.' in parsed_link.hostname and parsed_link.hostname != urlparse(base_url).hostname:
+                    links.add(parsed_link.hostname)
+            except ValueError:
+                # Ignore malformed URLs that urlparse can't handle
+                continue
 
     cdn_map = {}
-    for link in links:
-        ips = get_ip_addresses(link)
-        try:
-            # A simple check for cloudflare in headers of the linked domain
-            response = requests.get(f"https://{link}", timeout=5)
-            server_header = response.headers.get("Server", "").lower()
-            cdn = "Cloudflare ✅" if "cloudflare" in server_header else "Other/Unknown"
-        except requests.RequestException:
-            cdn = "Other/Unknown"
-        cdn_map[link] = (ips, cdn)
+    # Use a ThreadPoolExecutor to check domains in parallel for better performance
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        future_to_domain = {executor.submit(check_domain_cdn, link): link for link in links}
+        for future in concurrent.futures.as_completed(future_to_domain):
+            try:
+                domain, result = future.result()
+                cdn_map[domain] = result
+            except Exception as exc:
+                domain_name = future_to_domain[future]
+                print(f'{domain_name} generated an exception: {exc}')
 
     return cdn_map
 
