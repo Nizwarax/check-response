@@ -254,17 +254,17 @@ def get_cdn_map(html_content, base_url):
 
 async def ping_command(update, context):
     """Handler for the /ping command."""
-    await update.message.reply_text("Pong!")
+    await update.message.reply_text("✅ Pong! Saya aktif dan merespon. 🏓")
 
 async def adduser_command(update, context):
     """Handler for the /adduser command."""
     user_id = update.effective_user.id
     if not is_user_admin(user_id):
-        await update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("🚫 Anda tidak diizinkan menggunakan perintah ini.")
         return
 
     if not context.args:
-        await update.message.reply_text("Usage: /adduser <user_id>")
+        await update.message.reply_text("⚠️ Penggunaan: /adduser <id_pengguna>")
         return
 
     try:
@@ -273,47 +273,70 @@ async def adduser_command(update, context):
         if new_user_id not in allowed_users:
             allowed_users.append(new_user_id)
             save_allowed_users(allowed_users)
-            await update.message.reply_text(f"User {new_user_id} has been added to the allowed list.")
+            await update.message.reply_text(f"✅ Pengguna {new_user_id} telah ditambahkan ke daftar yang diizinkan.")
         else:
-            await update.message.reply_text(f"User {new_user_id} is already in the allowed list.")
+            await update.message.reply_text(f"ℹ️ Pengguna {new_user_id} sudah ada di dalam daftar.")
     except ValueError:
-        await update.message.reply_text("Invalid user ID. Please provide a number.")
+        await update.message.reply_text("❌ ID Pengguna tidak valid. Harap berikan nomor.")
+
+async def deluser_command(update, context):
+    """Handler for the /deluser command."""
+    user_id = update.effective_user.id
+    if not is_user_admin(user_id):
+        await update.message.reply_text("🚫 Anda tidak diizinkan menggunakan perintah ini.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("⚠️ Penggunaan: /deluser <id_pengguna>")
+        return
+
+    try:
+        user_to_delete = int(context.args[0])
+        allowed_users = load_allowed_users()
+        if user_to_delete in allowed_users:
+            allowed_users.remove(user_to_delete)
+            save_allowed_users(allowed_users)
+            await update.message.reply_text(f"🗑️ Akses untuk pengguna {user_to_delete} telah dicabut.")
+        else:
+            await update.message.reply_text(f"ℹ️ Pengguna {user_to_delete} tidak ditemukan dalam daftar.")
+    except ValueError:
+        await update.message.reply_text("❌ ID Pengguna tidak valid. Harap berikan nomor.")
 
 async def listusers_command(update, context):
     """Handler for the /listusers command."""
     user_id = update.effective_user.id
     if not is_user_admin(user_id):
-        await update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("🚫 Anda tidak diizinkan menggunakan perintah ini.")
         return
 
     allowed_users = load_allowed_users()
     if not allowed_users:
-        await update.message.reply_text("The allowed users list is empty.")
+        await update.message.reply_text("ℹ️ Daftar pengguna yang diizinkan kosong.")
         return
 
-    message = "Allowed Users:\n" + "\n".join(map(str, allowed_users))
+    message = "👥 Daftar Pengguna yang Diizinkan:\n" + "\n".join(map(str, allowed_users))
     await update.message.reply_text(message)
 
 async def broadcast_command(update, context):
     """Handler for the /broadcast command."""
     user_id = update.effective_user.id
     if not is_user_admin(user_id):
-        await update.message.reply_text("You are not authorized to use this command.")
+        await update.message.reply_text("🚫 Anda tidak diizinkan menggunakan perintah ini.")
         return
 
     message_to_broadcast = " ".join(context.args)
     if not message_to_broadcast:
-        await update.message.reply_text("Usage: /broadcast <your message>")
+        await update.message.reply_text("⚠️ Penggunaan: /broadcast <pesan Anda>")
         return
 
     all_users = load_json_file(ALL_USERS_FILE)
     if not all_users:
-        await update.message.reply_text("There are no users to broadcast to.")
+        await update.message.reply_text("ℹ️ Tidak ada pengguna untuk dikirimi siaran.")
         return
 
     sent_count = 0
     failed_count = 0
-    await update.message.reply_text(f"Broadcasting to {len(all_users)} users...")
+    await update.message.reply_text(f"🚀 Menyiarkan ke {len(all_users)} pengguna...")
 
     for user in all_users:
         try:
@@ -322,19 +345,25 @@ async def broadcast_command(update, context):
             await asyncio.sleep(0.1) # Avoid hitting rate limits
         except Exception as e:
             failed_count += 1
-            print(f"Failed to send broadcast to {user}: {e}")
+            print(f"Gagal mengirim siaran ke {user}: {e}")
 
-    await update.message.reply_text(f"Broadcast complete.\nSent: {sent_count}\nFailed: {failed_count}")
+    await update.message.reply_text(f"✅ Siaran selesai.\n✔️ Terkirim: {sent_count}\n❌ Gagal: {failed_count}")
 
 
 async def start(update, context):
     """Handler for the /start command."""
     user_id = update.effective_user.id
     save_user_for_broadcast(user_id)
-    await update.message.reply_text(
-        "Welcome to the Response Checker Bot!\n\n"
-        "Send me a full URL (e.g., https://example.com) and I will analyze it for you."
+    welcome_message = (
+        "🤖 **Selamat Datang di Bot Pengecek Respon!**\n\n"
+        "Saya adalah bot yang dapat membantu Anda menganalisis detail teknis dari sebuah URL, "
+        "seperti informasi IP, SSL/TLS, dan peta CDN.\n\n"
+        "➡️ **Cara Penggunaan:**\n"
+        "Kirimkan saya URL lengkap (contoh: `https://google.com`) untuk memulai analisis.\n\n"
+        "⚠️ *Harap dicatat: Fitur ini hanya tersedia untuk pengguna yang diizinkan. "
+        "Jika Anda belum memiliki akses, silakan hubungi admin.*"
     )
+    await update.message.reply_text(welcome_message, parse_mode='Markdown')
 
 async def handle_message(update, context):
     """Handler for text messages, checks for URLs."""
@@ -367,6 +396,7 @@ def run_bot(bot_token):
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ping", ping_command))
     application.add_handler(CommandHandler("adduser", adduser_command))
+    application.add_handler(CommandHandler("deluser", deluser_command))
     application.add_handler(CommandHandler("listusers", listusers_command))
     application.add_handler(CommandHandler("broadcast", broadcast_command))
 

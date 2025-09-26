@@ -82,6 +82,9 @@ Saat berjalan dalam mode bot, admin dapat menggunakan perintah-perintah berikut:
 -   `/adduser <user_id>`
     -   Memberikan izin kepada pengguna baru untuk menggunakan fitur analisis.
     -   Contoh: `/adduser 123456789`
+-   `/deluser <user_id>`
+    -   Mencabut izin dari seorang pengguna.
+    -   Contoh: `/deluser 123456789`
 -   `/listusers`
     -   Menampilkan daftar semua pengguna yang telah diberi izin.
 -   `/broadcast <pesan>`
