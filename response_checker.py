@@ -35,8 +35,6 @@ def get_ssl_info(hostname):
             with context.wrap_socket(sock, server_hostname=hostname) as ssock:
                 cipher = ssock.cipher()
                 protocol = ssock.version()
-                # The peer certificate's commonName is often not available or relevant with SNI
-                # so we will leave it as a placeholder.
                 peer_cn = "-"
                 return cipher[0], protocol, peer_cn
     except (socket.gaierror, ConnectionRefusedError, ssl.SSLError, socket.timeout) as e:
@@ -101,7 +99,7 @@ def save_result_to_file(hostname, content):
     filename = f"{hostname.replace('.', '_')}_{timestamp}.txt"
     filepath = os.path.join(RESULTS_DIR, filename)
 
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding='utf-8') as f:
         f.write(content)
 
     return filepath
@@ -166,15 +164,12 @@ def check_domain_cdn(domain):
     ips = get_ip_addresses(domain)
     cdn = "Other/Unknown"
     try:
-        # Use a common user-agent to avoid being blocked.
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
         response = requests.get(f"https://{domain}", timeout=5, headers=headers)
         server_header = response.headers.get("Server", "").lower()
         if "cloudflare" in server_header:
             cdn = "Cloudflare ✅"
     except requests.RequestException:
-        # This can happen if the domain doesn't support HTTPS, is down, or blocks requests.
-        # We can safely ignore it and classify it as "Other/Unknown".
         pass
     return domain, (ips, cdn)
 
@@ -184,30 +179,24 @@ def get_cdn_map(html_content, base_url):
     Parses HTML to find linked domains and their IP addresses using multithreading.
     """
     try:
-        # Try to use the faster lxml parser
         soup = BeautifulSoup(html_content, "lxml")
     except FeatureNotFound:
-        # If lxml is not installed, fall back to the built-in html.parser
         print("\n[!] lxml parser not found. Falling back to the built-in html.parser.")
         print("    For better performance, please install it with: pip install lxml")
         soup = BeautifulSoup(html_content, "html.parser")
 
     links = set()
-    # A more efficient way to find all relevant links
     for tag in soup.find_all(href=True) + soup.find_all(src=True):
         url = tag.get('href') or tag.get('src')
         if url and not url.startswith(("mailto:", "tel:", "#", "javascript:")):
             try:
                 parsed_link = urlparse(url)
-                # Ensure it's a valid, external hostname
                 if parsed_link.hostname and '.' in parsed_link.hostname and parsed_link.hostname != urlparse(base_url).hostname:
                     links.add(parsed_link.hostname)
             except ValueError:
-                # Ignore malformed URLs that urlparse can't handle
                 continue
 
     cdn_map = {}
-    # Use a ThreadPoolExecutor to check domains in parallel for better performance
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
         future_to_domain = {executor.submit(check_domain_cdn, link): link for link in links}
         for future in concurrent.futures.as_completed(future_to_domain):
@@ -230,19 +219,13 @@ async def start(update, context):
 async def handle_message(update, context):
     """Handler for text messages, checks for URLs."""
     text = update.message.text
-    # A simple regex could be used here, but for now, we'll just check for http/https
     if text.lower().startswith("http://") or text.lower().startswith("https://"):
         await update.message.reply_text(f"Analyzing {text}...")
         try:
-            # Running the synchronous analysis function in a separate thread
-            # to avoid blocking the asyncio event loop.
             output, _ = await asyncio.to_thread(get_analysis_output, text)
-
-            # Telegram has a message size limit, so we send it in chunks if needed
             for i in range(0, len(output), 4096):
                 chunk = output[i:i+4096]
                 await update.message.reply_text(f"```\n{chunk}\n```", parse_mode='MarkdownV2')
-
         except Exception as e:
             await update.message.reply_text(f"An error occurred during analysis: {e}")
     else:
@@ -254,10 +237,8 @@ def run_bot(bot_token):
     """
     print("Starting bot mode...")
     application = Application.builder().token(bot_token).build()
-
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     application.run_polling()
 
 def main():
@@ -278,37 +259,36 @@ def main():
         while True:
             print("\nMenu:")
             print("1. Run check and display in terminal")
-        print("2. Run check and send to Telegram")
-        print("3. Configure Telegram Bot")
-        print("4. Exit")
-        choice = input("Enter your choice: ")
+            print("2. Run check and send to Telegram")
+            print("3. Configure Telegram Bot")
+            print("4. Exit")
+            choice = input("Enter your choice: ")
 
-        if choice == "1":
-            target_url = input("Enter the URL to check: ")
-            print("Analyzing...")
-            output, filepath = get_analysis_output(target_url)
-            print(output)
-            print(f"\n[+] Result saved to: {filepath}")
-        elif choice == "2":
-            config = load_config()
-            if not config:
-                print("Telegram bot not configured. Please configure it first.")
-                continue
-            target_url = input("Enter the URL to check: ")
-            print("Analyzing and sending to Telegram...")
-            output, filepath = get_analysis_output(target_url)
-            asyncio.run(send_to_telegram(output, config["bot_token"], config["chat_id"]))
-            print(f"\n[+] Result saved to: {filepath}")
-        elif choice == "3":
-            bot_token = input("Enter your Telegram Bot Token: ")
-            chat_id = input("Enter your Telegram Chat ID: ")
-            save_config(bot_token, chat_id)
-            print("Configuration saved.")
-        elif choice == "4":
-            break
-        else:
-            print("Invalid choice. Please try again.")
-
+            if choice == "1":
+                target_url = input("Enter the URL to check: ")
+                print("Analyzing...")
+                output, filepath = get_analysis_output(target_url)
+                print(output)
+                print(f"\n[+] Result saved to: {filepath}")
+            elif choice == "2":
+                config = load_config()
+                if not config:
+                    print("Telegram bot not configured. Please configure it first.")
+                    continue
+                target_url = input("Enter the URL to check: ")
+                print("Analyzing and sending to Telegram...")
+                output, filepath = get_analysis_output(target_url)
+                asyncio.run(send_to_telegram(output, config["bot_token"], config["chat_id"]))
+                print(f"\n[+] Result saved to: {filepath}")
+            elif choice == "3":
+                bot_token = input("Enter your Telegram Bot Token: ")
+                chat_id = input("Enter your Telegram Chat ID: ")
+                save_config(bot_token, chat_id)
+                print("Configuration saved.")
+            elif choice == "4":
+                break
+            else:
+                print("Invalid choice. Please try again.")
 
 if __name__ == "__main__":
     main()
