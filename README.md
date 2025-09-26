@@ -11,10 +11,11 @@ Skrip ini menyediakan analisis mendetail dari sebuah URL web, termasuk alamat IP
 
 1.  **Clone repositori ini:**
     ```bash
-    git clone https://github.com/Nizwarax/check-response.git
-    cd check-response
+    git clone <url_repositori>
+    cd <direktori_repositori>
     ```
-    
+    *(Catatan: Ganti `<url_repositori>` dan `<direktori_repositori>` dengan URL dan nama folder yang sebenarnya)*
+
 2.  **Instal library Python yang dibutuhkan:**
     Skrip ini menggunakan beberapa library Python. Anda dapat menginstalnya menggunakan file `requirements.txt`.
     ```bash
@@ -81,6 +82,9 @@ Saat berjalan dalam mode bot, admin dapat menggunakan perintah-perintah berikut:
 -   `/adduser <user_id>`
     -   Memberikan izin kepada pengguna baru untuk menggunakan fitur analisis.
     -   Contoh: `/adduser 123456789`
+-   `/deluser <user_id>`
+    -   Mencabut izin dari seorang pengguna.
+    -   Contoh: `/deluser 123456789`
 -   `/listusers`
     -   Menampilkan daftar semua pengguna yang telah diberi izin.
 -   `/broadcast <pesan>`
