@@ -447,7 +447,7 @@ def main():
                 asyncio.run(send_to_telegram(output, config["bot_token"], first_admin_id))
                 print(f"\n[+] Result saved to: {filepath}")
             elif choice == "3":
-            configure_bot_ui()
+                configure_bot_ui()
             elif choice == "4":
                 break
             else:
