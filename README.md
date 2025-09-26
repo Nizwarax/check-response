@@ -11,8 +11,8 @@ Skrip ini menyediakan analisis mendetail dari sebuah URL web, termasuk alamat IP
 
 1.  **Clone repositori ini:**
     ```bash
-    git clone <url_repositori>
-    cd <direktori_repositori>
+    git clone https://github.com/Nizwarax/check-response.git
+    cd check-response
     ```
     *(Catatan: Ganti `<url_repositori>` dan `<direktori_repositori>` dengan URL dan nama folder yang sebenarnya)*
 
