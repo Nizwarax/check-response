@@ -11,8 +11,8 @@ Skrip ini menyediakan analisis mendetail dari sebuah URL web, termasuk alamat IP
 
 1.  **Clone repositori ini:**
     ```bash
-    git clone https://github.com/Nizwarax/check-response.git
-    cd check-response
+    git clone <url_repositori>
+    cd <direktori_repositori>
     ```
     *(Catatan: Ganti `<url_repositori>` dan `<direktori_repositori>` dengan URL dan nama folder yang sebenarnya)*
 
@@ -57,11 +57,11 @@ Untuk mengirim laporan ke Telegram, Anda harus mengkonfigurasi bot terlebih dahu
     -   Masukkan Token Bot dan ID Obrolan Anda saat diminta.
     -   Kredensial akan disimpan dalam file `config.json` di direktori yang sama.
 
-Setelah dikonfigurasi, Anda dapat menggunakan opsi `2` untuk mengirim laporan analisis langsung ke obrolan Anda.
+Setelah dikonfigurasi, Anda dapat menggunakan opsi `2` untuk mengirim laporan analisis langsung ke obrolan admin pertama yang terdaftar.
 
 ## Mode Bot (Otomatis)
 
-Anda juga bisa menjalankan skrip ini dalam "Mode Bot" yang akan terus berjalan di latar belakang. Dalam mode ini, Anda bisa mengirim URL langsung ke bot Anda kapan saja, dan bot akan membalas dengan hasil analisis secara otomatis.
+Anda juga bisa menjalankan skrip ini dalam "Mode Bot" yang akan terus berjalan di latar belakang. Dalam mode ini, Anda bisa mengirim URL langsung ke bot Anda kapan saja, dan bot akan membalas dengan hasil analisis secara otomatis (jika Anda memiliki izin).
 
 ### Cara Menjalankan Mode Bot
 
@@ -72,3 +72,18 @@ Anda juga bisa menjalankan skrip ini dalam "Mode Bot" yang akan terus berjalan d
     ```
 3.  Skrip akan berjalan di latar belakang. Sekarang Anda bisa mengirimkan URL (contoh: `https://google.com`) ke bot Anda di Telegram, dan bot akan membalas dengan analisisnya.
 4.  Untuk menghentikan bot, kembali ke terminal tempat Anda menjalankan skrip dan tekan `Ctrl + C`.
+
+## Fitur Admin (Bot Mode)
+
+Saat berjalan dalam mode bot, admin dapat menggunakan perintah-perintah berikut:
+
+-   `/ping`
+    -   Memeriksa apakah bot aktif dan merespon.
+-   `/adduser <user_id>`
+    -   Memberikan izin kepada pengguna baru untuk menggunakan fitur analisis.
+    -   Contoh: `/adduser 123456789`
+-   `/listusers`
+    -   Menampilkan daftar semua pengguna yang telah diberi izin.
+-   `/broadcast <pesan>`
+    -   Mengirim pesan ke semua pengguna yang pernah berinteraksi dengan bot.
+    -   Contoh: `/broadcast Halo semua, bot sedang dalam maintenance.`
