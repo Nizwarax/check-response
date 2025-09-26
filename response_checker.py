@@ -4,10 +4,13 @@ import socket
 import ssl
 from urllib.parse import urlparse
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, FeatureNotFound
 import telegram
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import asyncio
 import concurrent.futures
 from datetime import datetime
+import argparse
 
 CONFIG_FILE = "config.json"
 RESULTS_DIR = "results"
@@ -76,13 +79,13 @@ def load_config():
             return json.load(f)
     return None
 
-def send_to_telegram(message, bot_token, chat_id):
+async def send_to_telegram(message, bot_token, chat_id):
     """
-    Sends a message to a Telegram chat.
+    Sends a message to a Telegram chat asynchronously.
     """
     try:
         bot = telegram.Bot(token=bot_token)
-        bot.send_message(chat_id=chat_id, text=message)
+        await bot.send_message(chat_id=chat_id, text=f"```\n{message}\n```", parse_mode='MarkdownV2')
         print("Successfully sent to Telegram!")
     except Exception as e:
         print(f"Failed to send to Telegram: {e}")
@@ -180,7 +183,15 @@ def get_cdn_map(html_content, base_url):
     """
     Parses HTML to find linked domains and their IP addresses using multithreading.
     """
-    soup = BeautifulSoup(html_content, "lxml")
+    try:
+        # Try to use the faster lxml parser
+        soup = BeautifulSoup(html_content, "lxml")
+    except FeatureNotFound:
+        # If lxml is not installed, fall back to the built-in html.parser
+        print("\n[!] lxml parser not found. Falling back to the built-in html.parser.")
+        print("    For better performance, please install it with: pip install lxml")
+        soup = BeautifulSoup(html_content, "html.parser")
+
     links = set()
     # A more efficient way to find all relevant links
     for tag in soup.find_all(href=True) + soup.find_all(src=True):
@@ -209,13 +220,64 @@ def get_cdn_map(html_content, base_url):
 
     return cdn_map
 
+async def start(update, context):
+    """Handler for the /start command."""
+    await update.message.reply_text(
+        "Welcome to the Response Checker Bot!\n\n"
+        "Send me a full URL (e.g., https://example.com) and I will analyze it for you."
+    )
+
+async def handle_message(update, context):
+    """Handler for text messages, checks for URLs."""
+    text = update.message.text
+    # A simple regex could be used here, but for now, we'll just check for http/https
+    if text.lower().startswith("http://") or text.lower().startswith("https://"):
+        await update.message.reply_text(f"Analyzing {text}...")
+        try:
+            # Running the synchronous analysis function in a separate thread
+            # to avoid blocking the asyncio event loop.
+            output, _ = await asyncio.to_thread(get_analysis_output, text)
+
+            # Telegram has a message size limit, so we send it in chunks if needed
+            for i in range(0, len(output), 4096):
+                chunk = output[i:i+4096]
+                await update.message.reply_text(f"```\n{chunk}\n```", parse_mode='MarkdownV2')
+
+        except Exception as e:
+            await update.message.reply_text(f"An error occurred during analysis: {e}")
+    else:
+        await update.message.reply_text("Please send a valid URL starting with http:// or https://")
+
+def run_bot(bot_token):
+    """
+    Runs the script in persistent bot mode.
+    """
+    print("Starting bot mode...")
+    application = Application.builder().token(bot_token).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    application.run_polling()
+
 def main():
     """
     Main function to run the response checker.
     """
-    while True:
-        print("\nMenu:")
-        print("1. Run check and display in terminal")
+    parser = argparse.ArgumentParser(description="Response Checker Script")
+    parser.add_argument("--bot", action="store_true", help="Run in persistent bot mode.")
+    args = parser.parse_args()
+
+    if args.bot:
+        config = load_config()
+        if not config or "bot_token" not in config:
+            print("Bot token not configured. Please run the script without --bot first and configure it.")
+            return
+        run_bot(config["bot_token"])
+    else:
+        while True:
+            print("\nMenu:")
+            print("1. Run check and display in terminal")
         print("2. Run check and send to Telegram")
         print("3. Configure Telegram Bot")
         print("4. Exit")
@@ -235,7 +297,7 @@ def main():
             target_url = input("Enter the URL to check: ")
             print("Analyzing and sending to Telegram...")
             output, filepath = get_analysis_output(target_url)
-            send_to_telegram(output, config["bot_token"], config["chat_id"])
+            asyncio.run(send_to_telegram(output, config["bot_token"], config["chat_id"]))
             print(f"\n[+] Result saved to: {filepath}")
         elif choice == "3":
             bot_token = input("Enter your Telegram Bot Token: ")

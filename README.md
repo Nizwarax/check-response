@@ -58,3 +58,17 @@ Untuk mengirim laporan ke Telegram, Anda harus mengkonfigurasi bot terlebih dahu
     -   Kredensial akan disimpan dalam file `config.json` di direktori yang sama.
 
 Setelah dikonfigurasi, Anda dapat menggunakan opsi `2` untuk mengirim laporan analisis langsung ke obrolan Anda.
+
+## Mode Bot (Otomatis)
+
+Anda juga bisa menjalankan skrip ini dalam "Mode Bot" yang akan terus berjalan di latar belakang. Dalam mode ini, Anda bisa mengirim URL langsung ke bot Anda kapan saja, dan bot akan membalas dengan hasil analisis secara otomatis.
+
+### Cara Menjalankan Mode Bot
+
+1.  Pastikan Anda sudah melakukan [konfigurasi bot](#integrasi-telegram) terlebih dahulu.
+2.  Jalankan skrip dengan menambahkan flag `--bot`:
+    ```bash
+    python3 response_checker.py --bot
+    ```
+3.  Skrip akan berjalan di latar belakang. Sekarang Anda bisa mengirimkan URL (contoh: `https://google.com`) ke bot Anda di Telegram, dan bot akan membalas dengan analisisnya.
+4.  Untuk menghentikan bot, kembali ke terminal tempat Anda menjalankan skrip dan tekan `Ctrl + C`.
